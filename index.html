@@ -186,8 +186,6 @@
   #contact{text-align:center;padding-bottom:120px}
   #contact .lede{margin:0 auto 34px}
   .contact-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-  .term-hint{margin-top:40px;font-size:11px;color:var(--muted);letter-spacing:1px}
-  .term-hint kbd{background:var(--s2);border:1px solid var(--border2);border-radius:3px;padding:2px 7px;color:var(--accent);font-family:var(--mono)}
 
   /* ---------- footer / status bar ---------- */
   footer{position:fixed;bottom:0;left:0;right:0;height:28px;z-index:70;background:rgba(12,16,24,.9);
@@ -218,9 +216,29 @@
   .toast .eg{color:var(--accent);font-family:var(--cond);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-right:8px}
   @keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
-  /* ---------- egg: rave mode ---------- */
-  body.rave{animation:hue 4s linear infinite}
+  /* ---------- egg: VEGAS MODE (konami) — internal name, never shown on screen ---------- */
+  /* Fast full-screen hue — applied to the visible LAYERS, never to <body>. A filter (or
+     transform) on <body> would make it the containing block for every position:fixed
+     element, sizing them to the whole document instead of the viewport. Keep it off body. */
+  body.vegas #bg-canvas,
+  body.vegas #grid-overlay,
+  body.vegas header,
+  body.vegas main,
+  body.vegas footer{ animation:hue 1s linear infinite; }
   @keyframes hue{from{filter:hue-rotate(0)}to{filter:hue-rotate(360deg)}}
+  /* continuous hero glitch while VEGAS MODE is active */
+  .wordmark.vegas-glitch .glitch::before{animation:gl1 .18s steps(2) infinite;opacity:.9}
+  .wordmark.vegas-glitch .glitch::after{animation:gl2 .18s steps(2) infinite;opacity:.9}
+  /* periodic full-screen invert flash — difference blend against white = true invert,
+     with no filter/transform on any ancestor (so fixed overlays stay put) */
+  #vegas-flash{position:fixed;inset:0;z-index:190;pointer-events:none;background:#fff;mix-blend-mode:difference;opacity:0;transition:opacity .04s}
+  #vegas-flash.on{opacity:1}
+  /* big pulsing name-free banner (kept above the flash so it stays gold) */
+  #vegas-banner{position:fixed;inset:0;z-index:192;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .25s}
+  #vegas-banner.show{opacity:1}
+  #vegas-banner b{font-family:var(--disp);font-size:clamp(80px,20vw,260px);letter-spacing:18px;padding-left:18px;line-height:.86;text-align:center;color:var(--accent);
+    text-shadow:0 0 30px rgba(240,192,64,.9),0 0 70px rgba(240,64,64,.6),0 0 120px rgba(64,144,255,.5);animation:vegaspulse .5s ease-in-out infinite}
+  @keyframes vegaspulse{0%,100%{transform:scale(1) rotate(-1deg)}50%{transform:scale(1.14) rotate(1deg)}}
 
   /* egg counter badge */
   #egg-badge{position:fixed;top:64px;right:20px;z-index:75;background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:6px 12px;font-size:10px;letter-spacing:1px;color:var(--muted2);display:flex;align-items:center;gap:7px;opacity:0;transform:translateY(-6px);transition:.25s;pointer-events:none}
@@ -292,7 +310,7 @@
       <div class="who-cell"><div class="n">3</div><div class="l">shipping products</div><p>A weekly-chart pattern scanner, a container-scale GPU cloud, and a distributed dev mesh — all live, all built lean.</p></div>
       <div class="who-cell"><div class="n">1</div><div class="l">shipping container</div><p>Forty feet of steel and 400 amps of power, quietly renting GPU compute to the rest of the internet.</p></div>
       <div class="who-cell"><div class="n">2</div><div class="l">nodes, one mind</div><p>Two Mac Minis lashed together over an encrypted tunnel, sharing memory and splitting the work.</p></div>
-      <div class="who-cell"><div class="n">∞</div><div class="l">easter eggs (approx.)</div><p>This site is a toy as much as a homepage. Poke it. Type at it. Konami it. There are rewards.</p></div>
+      <div class="who-cell"><div class="n">∞</div><div class="l">easter eggs (approx.)</div><p>This site is a toy as much as a homepage. Poke it. Type at it. Stay curious. There are rewards for those who look.</p></div>
     </div>
   </section>
 
@@ -329,7 +347,6 @@
       <a href="mailto:hello@unpossiblellc.com" class="btn primary">hello@unpossiblellc.com</a>
       <button class="btn ghost" id="secret-btn">·</button>
     </div>
-    <div class="term-hint">psst — press <kbd>`</kbd> for a terminal, try the <kbd>↑↑↓↓←→←→ B A</kbd> code, and check the <kbd>console</kbd>.</div>
   </section>
 </main>
 
@@ -351,6 +368,8 @@
 </div>
 
 <div id="toast-wrap"></div>
+<div id="vegas-flash"></div>
+<div id="vegas-banner"><b>7 7 7</b></div>
 
 <script>
 "use strict";
@@ -451,16 +470,17 @@
     }
     // node mesh
     bgx.globalAlpha=1;
+    const vg=document.body.classList.contains('vegas');
     for(const n of nodes){ n.x+=n.vx; n.y+=n.vy; if(n.x<0||n.x>W)n.vx*=-1; if(n.y<0||n.y>H)n.vy*=-1; }
     for(let i=0;i<nodes.length;i++){
       for(let j=i+1;j<nodes.length;j++){
         const a=nodes[i],b=nodes[j]; const dx=a.x-b.x,dy=a.y-b.y; const d=Math.hypot(dx,dy);
-        if(d<150){ bgx.globalAlpha=(1-d/150)*0.14; bgx.strokeStyle=document.body.classList.contains('rave')?'hsl('+((raveHue+d)%360)+',80%,60%)':'#f0c040'; bgx.lineWidth=0.6; bgx.beginPath(); bgx.moveTo(a.x,a.y); bgx.lineTo(b.x,b.y); bgx.stroke(); }
+        if(d<150){ bgx.globalAlpha=(1-d/150)*(vg?0.55:0.14); bgx.strokeStyle=vg?'hsl('+((raveHue*3+d)%360)+',90%,62%)':'#f0c040'; bgx.lineWidth=vg?1.1:0.6; bgx.beginPath(); bgx.moveTo(a.x,a.y); bgx.lineTo(b.x,b.y); bgx.stroke(); }
       }
     }
     bgx.globalAlpha=0.9;
-    for(const n of nodes){ bgx.fillStyle=document.body.classList.contains('rave')?'hsl('+(raveHue%360)+',80%,60%)':'#4090ff'; bgx.fillRect(n.x-1,n.y-1,2,2); }
-    raveHue+=1.4; bgx.globalAlpha=1;
+    for(const n of nodes){ bgx.fillStyle=vg?'hsl('+((raveHue*3+n.x)%360)+',90%,62%)':'#4090ff'; bgx.fillRect(n.x-1,n.y-1,vg?3:2,vg?3:2); }
+    raveHue+=vg?5:1.4; bgx.globalAlpha=1;
     requestAnimationFrame(frame);
   }
   window.addEventListener('resize',()=>{resize();initField();});
@@ -587,20 +607,72 @@
   });
 
   /* ============================================================
-     EGG 2 — Konami code -> rave mode
+     EGG 2 — Konami code -> VEGAS MODE (full-blown spectacle)
+     (internal name only — never shown on screen)
      ============================================================ */
   const KON=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
   let konIdx=0;
   document.addEventListener('keydown',e=>{
     const k=e.key.length===1?e.key.toLowerCase():e.key;
-    if(k===KON[konIdx]){ konIdx++; if(konIdx===KON.length){ konIdx=0; activateRave(); } }
+    if(k===KON[konIdx]){ konIdx++; if(konIdx===KON.length){ konIdx=0; toggleVegas(); } }
     else { konIdx = (k===KON[0])?1:0; }
   });
-  function activateRave(){
-    document.body.classList.toggle('rave');
-    const on=document.body.classList.contains('rave');
-    findEgg('konami','KONAMI CODE — rave mode '+(on?'ON':'OFF'));
-    if(on){ if(!soundOn) toggleSound(); for(let i=0;i<8;i++) setTimeout(()=>blip(400+i*110),i*90); }
+
+  /* VEGAS MODE — every effect below is torn down cleanly on exit (no timer leaks, no leftover state) */
+  let vegasActive=false, vgShakeIv=null, vgFlashIv=null, vgArpIv=null, vgArpStep=0, vgBannerT=null;
+  const VEGAS_ARP=[523.25,659.25,783.99,1046.5,783.99,659.25,587.33,783.99];
+  function toggleVegas(){ vegasActive ? vegasStop() : vegasStart(); }   // used by konami, terminal, partyPrize
+  function vegasStart(){
+    if(vegasActive) return; vegasActive=true;
+    document.body.classList.add('vegas');                 // single active flag; frame()+CSS key off it
+    findEgg('konami','KONAMI CODE — the house always wins now. enjoy the lights.');
+    // background canvas goes wild: many more nodes, much faster (frame() draws rainbow while .vegas)
+    nodes=[]; for(let i=0;i<70;i++) nodes.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*1.2,vy:(Math.random()-0.5)*1.2});
+    // continuous hero glitch
+    $("#wordmark").classList.add('vegas-glitch');
+    // screen shake — jitter the CONTENT (main); shaking <body> would reparent every fixed overlay
+    const m=$("main");
+    vgShakeIv=setInterval(()=>{
+      const dx=(Math.random()-0.5)*9,dy=(Math.random()-0.5)*9,r=(Math.random()-0.5)*1.2;
+      m.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px) rotate('+r.toFixed(2)+'deg)';
+    },55);
+    // periodic full-screen invert flash (via blend overlay, so nothing gets reparented)
+    vgFlashIv=setInterval(vegasFlash,2100);
+    // audio: force ambient on, then loop an arpeggio
+    if(!soundOn) toggleSound();
+    vgArpStep=0; vgArpIv=setInterval(vegasArpTick,150);
+    // big pulsing (name-free) banner on activation
+    const bn=$("#vegas-banner"); if(bn){ bn.classList.add('show'); clearTimeout(vgBannerT); vgBannerT=setTimeout(()=>bn.classList.remove('show'),2600); }
+    toast("🎰","enter the code again to return to reality",4200);
+  }
+  function vegasStop(){
+    if(!vegasActive) return; vegasActive=false;
+    clearInterval(vgShakeIv); vgShakeIv=null;
+    clearInterval(vgFlashIv); vgFlashIv=null;
+    clearInterval(vgArpIv);   vgArpIv=null;
+    clearTimeout(vgBannerT);  vgBannerT=null;
+    document.body.classList.remove('vegas');
+    const m=$("main"); if(m) m.style.transform='';                  // remove shake
+    const fl=$("#vegas-flash"); if(fl) fl.classList.remove('on');   // clear any lingering invert
+    $("#wordmark").classList.remove('vegas-glitch');                // stop continuous glitch
+    const bn=$("#vegas-banner"); if(bn) bn.classList.remove('show');
+    initField();                                                   // restore node count + speed to defaults
+    toast("🎰","back to reality.",2000);
+  }
+  function vegasFlash(){
+    const fl=$("#vegas-flash"); if(!fl) return;
+    fl.classList.add('on');
+    setTimeout(()=>fl.classList.remove('on'),70);
+  }
+  function vegasArpTick(){
+    if(!soundOn) return;                            // respect a manual mute mid-mode
+    const c=ensureAudio(); if(!c) return;
+    const o=c.createOscillator(),g=c.createGain();
+    o.type='sawtooth'; o.frequency.value=VEGAS_ARP[vgArpStep%VEGAS_ARP.length]; g.gain.value=0.0001;
+    o.connect(g); g.connect(c.destination);
+    const t=c.currentTime;
+    g.gain.exponentialRampToValueAtTime(0.05,t+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);
+    o.start(t); o.stop(t+0.18); vgArpStep++;
   }
 
   /* ============================================================
@@ -662,7 +734,7 @@
     container:()=>["CONTAINER STATUS","  power draw ....... 387A / 400A","  gpus online ...... 14 (12x 4090, 2x A100)","  utilization ...... 91%","  temp ............. 71°C (nominal)","  $/day (est) ...... looking healthy"],
     mesh:()=>["pinging mesh ...","  node_a (milhouse) .... 2ms  [ONLINE]","  node_b (cousin)  .... 14ms [ONLINE]","  shared memory ....... synced","  orchestrator ........ node_a","two machines, one mind."],
     sound:()=>{ toggleSound(); return ["ambient audio "+(soundOn?"ON":"OFF")]; },
-    rave:()=>{ activateRave(); return ["rave mode toggled. hope you saved your work."]; },
+    rave:()=>{ toggleVegas(); return ["you pulled the lever. hope you saved your work."]; },
     eggs:()=>{ const n=Object.keys(eggs).length; return ["easter eggs found: "+n+"/"+EGG_TOTAL, n===EGG_TOTAL?"you got them all. legend.":"keep poking around the page."]; },
     contact:()=>["email .... hello@unpossiblellc.com","web ...... unpossiblellc.com","vibe ..... send us something impossible."],
     prize:()=>{ if(allEggsFound){ partyPrize(); return ["🏆 UNLOCKED: you found all "+EGG_TOTAL+" eggs.","You're exactly the kind of curious we build for.","Screenshot this and send it to hello@unpossiblellc.com — we owe you a sticker."]; } return ["prize locked. find all "+EGG_TOTAL+" eggs first. ("+Object.keys(eggs).length+"/"+EGG_TOTAL+")"]; },
@@ -687,7 +759,7 @@
       termPrint("  "+tk.padEnd(6)+" bullish engulfing   grade "+g+"   ▲","u"); blip(560+i*30); i++;
     },260);
   }
-  function partyPrize(){ for(let i=0;i<14;i++) setTimeout(()=>blip(500+i*60),i*70); if(!document.body.classList.contains('rave')) activateRave(); }
+  function partyPrize(){ for(let i=0;i<14;i++) setTimeout(()=>blip(500+i*60),i*70); if(!document.body.classList.contains('vegas')) toggleVegas(); }
 
   function handleCmd(raw){
     const cmd=raw.trim(); if(!cmd) return;
