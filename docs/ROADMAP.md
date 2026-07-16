@@ -3,6 +3,7 @@
 ## Phase 1 — Launch ✅ COMPLETE
 - [x] v1 interactive single-page site (boot, canvas, audio, terminal, eggs)
 - [x] v1.1 skip-intro easter egg (U key / tap), 8 eggs total
+- [x] v1.2 Konami cheat → "Vegas mode" spectacle (fast hue, screen shake, rainbow node-web, continuous glitch, invert flash, looping arpeggio, jackpot banner) with clean toggle-off; on-page egg hints removed (eggs are a mystery now)
 - [x] Live on Render, DNS verified, SSL issued (unpossiblellc.com)
 - [x] Email: ImprovMX free forwarding — catch-all *@unpossiblellc.com → inbox
 - [ ] Live QA: fonts, WebAudio over HTTPS, iOS Safari (tap skip + audio unlock gesture), Android, small screens
