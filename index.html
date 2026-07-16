@@ -65,12 +65,7 @@
   #boot pre{white-space:pre-wrap;font-size:12px;line-height:1.5;color:var(--green);text-shadow:0 0 6px rgba(48,208,96,.4)}
   #boot .caret{background:var(--green);animation:blink 1s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
-  #boot .skip{
-    margin-top:22px;color:var(--muted2);font-size:11px;letter-spacing:1px;
-    cursor:pointer;border:1px solid var(--border2);padding:7px 14px;border-radius:3px;
-    display:inline-block;transition:.15s;
-  }
-  #boot .skip:hover{color:var(--text);border-color:var(--muted2)}
+  /* no visible skip — skipping the intro is an easter egg (press U / tap on touch) */
 
   /* ---------- header ---------- */
   header{
@@ -245,7 +240,6 @@
 <!-- boot loader -->
 <div id="boot"><div id="boot-inner">
   <pre id="boot-text"></pre>
-  <span class="skip" id="boot-skip">[ skip intro ]</span>
 </div></div>
 
 <header>
@@ -264,7 +258,7 @@
   </nav>
 </header>
 
-<div id="egg-badge">EASTER EGGS <b><span id="egg-count">0</span>/7</b></div>
+<div id="egg-badge">EASTER EGGS <b><span id="egg-count">0</span>/8</b></div>
 
 <main>
   <!-- HERO -->
@@ -369,7 +363,7 @@
   const boot = new Date().getTime === undefined ? 0 : Date.now();
 
   /* ---------- state ---------- */
-  const EGG_TOTAL = 7;
+  const EGG_TOTAL = 8;
   const eggs = {}; // id -> true
   let soundOn = false;
 
@@ -513,7 +507,7 @@
     "loading engulfscan.pro ........... [ LIVE ]",
     "spinning up the container ........ [ 400A ]",
     "meshing node_a <-> node_b ........ [ SYNC ]",
-    "hiding easter eggs (7) ........... [ done ]",
+    "hiding easter eggs (8) ........... [ done ]",
     "",
     "welcome to UNPOSSIBLE LLC.",
     "> we make the unpossible, possible._"
@@ -538,8 +532,14 @@
     // subtle glitch pulse on the wordmark occasionally
     setInterval(()=>{ if(Math.random()<0.5){ const wm=$("#wordmark"); wm.classList.add('glitching'); setTimeout(()=>wm.classList.remove('glitching'),260);} }, 5200);
   }
-  $("#boot-skip").addEventListener('click',finishBoot);
-  document.addEventListener('keydown',e=>{ if(!bootDone && (e.key==='Enter'||e.key==='Escape'||e.key===' ')) finishBoot(); });
+  /* EGG — skipping the intro IS the easter egg. Press U (for Unpossible), or tap on touch devices. */
+  function skipBoot(){
+    if(bootDone) return;
+    finishBoot();
+    findEgg('skip','You skipped the intro. That was a secret. U for Unpossible.');
+  }
+  document.addEventListener('keydown',e=>{ if(!bootDone && (e.key==='u'||e.key==='U')) skipBoot(); });
+  $("#boot").addEventListener('touchend',e=>{ if(!bootDone){ e.preventDefault(); skipBoot(); } },{passive:false});
 
   /* ============================================================
      CLOCK + UPTIME + STATUS
@@ -706,7 +706,7 @@
   console.log('%cUNPOSSIBLE LLC','color:#f0c040;font-family:sans-serif;font-size:28px;font-weight:bold;letter-spacing:3px;text-shadow:0 0 10px rgba(240,192,64,.5)');
   console.log('%cwe make the unpossible, possible.',cs);
   console.log('%c\nOh, you opened the console. Of course you did.\nThat\'s eng #? of the hidden ones — but only if you type:  unpossible.hire()\n',cs2);
-  console.log('%cThere are 7 easter eggs on this page. Found any yet?',cs2);
+  console.log('%cThere are 8 easter eggs on this page. Found any yet?',cs2);
   window.unpossible = {
     hire(){ console.log('%c\n  We\'re always interested in people who read the console.\n  → hello@unpossiblellc.com  (mention "console")\n',cs); findEgg('console','You talked to the console. It talked back.'); return '👋'; },
     eggs(){ console.log('%cfound '+Object.keys(eggs).length+'/'+EGG_TOTAL,cs); return Object.keys(eggs); },
