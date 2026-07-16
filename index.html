@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UNPOSSIBLE LLC — we make the unpossible, possible</title>
+<meta name="description" content="Unpossible LLC is a very small studio doing suspiciously large things. Trading tools, a shipping-container GPU cloud, and a distributed AI dev mesh." />
+<meta property="og:title" content="UNPOSSIBLE LLC" />
+<meta property="og:description" content="We make the unpossible, possible." />
+<meta name="theme-color" content="#060810" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#060810; --s1:#0c1018; --s2:#141820; --s3:#1c2230;
+    --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.12);
+    --accent:#f0c040; --accent2:#4090ff; --green:#30d060; --red:#f04040;
+    --orange:#f07030; --purple:#a070f0;
+    --text:#d8dce8; --muted2:#8090a8; --muted:#505868;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --cond:'Barlow Condensed',sans-serif;
+    --disp:'Bebas Neue',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--mono);
+    font-size:13px; line-height:1.6; overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  body.no-scroll{overflow:hidden;height:100vh}
+  ::selection{background:var(--accent);color:#000}
+  a{color:var(--accent2);text-decoration:none}
+  canvas{display:block}
+
+  /* ---------- generative video background ---------- */
+  #bg-canvas{position:fixed;inset:0;z-index:0;opacity:.55}
+  #grid-overlay{
+    position:fixed;inset:0;z-index:1;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+    background-size:44px 44px; mask-image:radial-gradient(circle at 50% 40%,#000 0%,transparent 85%);
+  }
+  /* CRT scanline + vignette */
+  #crt{
+    position:fixed;inset:0;z-index:60;pointer-events:none;
+    background:
+      radial-gradient(circle at 50% 50%,transparent 55%,rgba(0,0,0,.55) 130%),
+      repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.12) 3px);
+    mix-blend-mode:multiply; opacity:.6;
+  }
+  body.crt-off #crt{display:none}
+
+  /* ---------- boot loader ---------- */
+  #boot{
+    position:fixed;inset:0;z-index:200;background:#04060c;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;
+    font-family:var(--mono);color:var(--green);
+    transition:opacity .6s ease; padding:24px;
+  }
+  #boot.done{opacity:0;pointer-events:none}
+  #boot-inner{width:min(680px,92vw)}
+  #boot pre{white-space:pre-wrap;font-size:12px;line-height:1.5;color:var(--green);text-shadow:0 0 6px rgba(48,208,96,.4)}
+  #boot .caret{background:var(--green);animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  #boot .skip{
+    margin-top:22px;color:var(--muted2);font-size:11px;letter-spacing:1px;
+    cursor:pointer;border:1px solid var(--border2);padding:7px 14px;border-radius:3px;
+    display:inline-block;transition:.15s;
+  }
+  #boot .skip:hover{color:var(--text);border-color:var(--muted2)}
+
+  /* ---------- header ---------- */
+  header{
+    position:fixed;top:0;left:0;right:0;height:56px;z-index:80;
+    background:rgba(12,16,24,.82);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border2);
+    display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+  }
+  .brand{display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none}
+  .brand .mark{
+    font-family:var(--disp);font-size:24px;letter-spacing:3px;color:var(--accent);
+    line-height:1;text-shadow:0 0 14px rgba(240,192,64,.35);
+  }
+  .brand .sub{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;border-left:1px solid var(--border2);padding-left:12px}
+  nav{display:flex;align-items:center;gap:4px}
+  nav a{
+    font-family:var(--cond);font-size:13px;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--muted2);padding:8px 12px;border-radius:3px;transition:.15s;
+  }
+  nav a:hover{color:var(--text);background:var(--s2)}
+  .icon-btn{
+    background:var(--s1);border:1px solid var(--border2);color:var(--muted2);
+    width:34px;height:34px;border-radius:3px;cursor:pointer;display:flex;
+    align-items:center;justify-content:center;transition:.15s;font-size:14px;
+  }
+  .icon-btn:hover{color:var(--accent);border-color:var(--muted2)}
+  .icon-btn.on{color:var(--accent);border-color:var(--accent)}
+  @media(max-width:720px){nav a.navlink{display:none}}
+
+  /* ---------- layout ---------- */
+  main{position:relative;z-index:10}
+  section{padding:96px 24px;max-width:1120px;margin:0 auto;position:relative}
+  .kicker{
+    font-family:var(--cond);font-size:11px;letter-spacing:3px;text-transform:uppercase;
+    color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:10px;
+  }
+  .kicker::before{content:"";width:24px;height:1px;background:var(--accent)}
+  h2.title{font-family:var(--disp);font-size:clamp(38px,6vw,72px);letter-spacing:2px;line-height:.95;margin-bottom:20px}
+  .lede{font-size:15px;color:var(--muted2);max-width:640px;line-height:1.8}
+
+  /* ---------- hero ---------- */
+  #hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding-top:56px;max-width:1120px}
+  .wordmark{
+    font-family:var(--disp);font-size:clamp(72px,18vw,220px);line-height:.82;letter-spacing:4px;
+    position:relative;cursor:default;user-select:none;color:var(--text);
+  }
+  .wordmark .glitch{position:relative;display:inline-block}
+  .wordmark .glitch::before,.wordmark .glitch::after{
+    content:attr(data-t);position:absolute;left:0;top:0;width:100%;overflow:hidden;
+  }
+  .wordmark .glitch::before{color:var(--red);clip-path:inset(0 0 55% 0);transform:translate(-2px,-1px);opacity:.0}
+  .wordmark .glitch::after{color:var(--accent2);clip-path:inset(55% 0 0 0);transform:translate(2px,1px);opacity:.0}
+  .wordmark.glitching .glitch::before{animation:gl1 .3s steps(2) infinite;opacity:.9}
+  .wordmark.glitching .glitch::after{animation:gl2 .3s steps(2) infinite;opacity:.9}
+  @keyframes gl1{0%{transform:translate(-3px,-2px)}50%{transform:translate(2px,1px)}100%{transform:translate(-2px,2px)}}
+  @keyframes gl2{0%{transform:translate(3px,2px)}50%{transform:translate(-2px,-1px)}100%{transform:translate(2px,-2px)}}
+  .hero-accent{color:var(--accent);text-shadow:0 0 30px rgba(240,192,64,.4)}
+  .hero-tag{margin-top:26px;font-size:16px;color:var(--muted2);max-width:560px;line-height:1.8}
+  .hero-tag b{color:var(--text);font-weight:600}
+  .hero-cta{margin-top:36px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .btn{
+    font-family:var(--cond);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+    font-size:14px;padding:12px 22px;border-radius:3px;cursor:pointer;border:1px solid transparent;
+    transition:.15s;display:inline-flex;align-items:center;gap:9px;
+  }
+  .btn.primary{background:var(--accent);color:#000}
+  .btn.primary:hover{background:#ffd45a;transform:translateY(-1px)}
+  .btn.ghost{background:transparent;border-color:var(--border2);color:var(--muted2)}
+  .btn.ghost:hover{color:var(--text);border-color:var(--muted2)}
+  .scroll-hint{margin-top:52px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
+  .scroll-hint .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* ---------- intro / who ---------- */
+  .who-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:40px}
+  @media(max-width:720px){.who-grid{grid-template-columns:1fr}}
+  .who-cell{background:var(--s1);padding:26px}
+  .who-cell .n{font-family:var(--disp);font-size:34px;color:var(--accent);letter-spacing:1px}
+  .who-cell .l{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:8px 0 12px}
+  .who-cell p{font-size:13px;color:var(--muted2);line-height:1.75}
+
+  /* ---------- projects ---------- */
+  .proj-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:44px}
+  .card{
+    background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:22px;
+    transition:border-color .15s,transform .1s;position:relative;overflow:hidden;cursor:pointer;
+  }
+  .card::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at var(--mx,50%) var(--my,0%),rgba(240,192,64,.08),transparent 55%);opacity:0;transition:opacity .3s;pointer-events:none}
+  .card:hover{border-color:var(--border2);transform:translateY(-2px)}
+  .card:hover::after{opacity:1}
+  .card .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+  .card .status{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 8px;border-radius:3px;border:1px solid var(--border2)}
+  .st-live{color:var(--green);border-color:rgba(48,208,96,.4)}
+  .st-build{color:var(--orange);border-color:rgba(240,112,48,.4)}
+  .st-secret{color:var(--purple);border-color:rgba(160,112,240,.4)}
+  .card h3{font-family:var(--cond);font-weight:700;font-size:26px;letter-spacing:.5px;margin-bottom:2px}
+  .card .cat{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  .card p{font-size:13px;color:var(--muted2);line-height:1.7;margin-bottom:16px}
+  .card .meta{display:flex;gap:18px;border-top:1px solid var(--border);padding-top:14px}
+  .card .meta div{display:flex;flex-direction:column}
+  .card .meta .mv{font-family:var(--cond);font-weight:700;font-size:19px;color:var(--text)}
+  .card .meta .mv.g{color:var(--green)} .card .meta .mv.b{color:var(--accent2)} .card .meta .mv.a{color:var(--accent)}
+  .card .meta .ml{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+  .spark{width:100%;height:34px;margin-bottom:14px;opacity:.8}
+
+  /* ---------- mission ---------- */
+  #mission{text-align:left}
+  .mission-statement{font-family:var(--cond);font-weight:600;font-size:clamp(24px,3.4vw,40px);line-height:1.3;letter-spacing:.5px;max-width:900px}
+  .mission-statement .hl{color:var(--accent)}
+  .mission-statement .strike{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--red)}
+  .principles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:44px}
+  .principles .p{background:var(--s1);padding:22px}
+  .principles .p .i{font-family:var(--disp);font-size:22px;color:var(--accent);letter-spacing:1px}
+  .principles .p .t{font-family:var(--cond);font-weight:700;font-size:16px;letter-spacing:1px;text-transform:uppercase;margin:10px 0 8px}
+  .principles .p p{font-size:12px;color:var(--muted2);line-height:1.7}
+
+  /* ---------- contact ---------- */
+  #contact{text-align:center;padding-bottom:120px}
+  #contact .lede{margin:0 auto 34px}
+  .contact-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .term-hint{margin-top:40px;font-size:11px;color:var(--muted);letter-spacing:1px}
+  .term-hint kbd{background:var(--s2);border:1px solid var(--border2);border-radius:3px;padding:2px 7px;color:var(--accent);font-family:var(--mono)}
+
+  /* ---------- footer / status bar ---------- */
+  footer{position:fixed;bottom:0;left:0;right:0;height:28px;z-index:70;background:rgba(12,16,24,.9);
+    backdrop-filter:blur(8px);border-top:1px solid var(--border);display:flex;align-items:center;
+    justify-content:space-between;padding:0 16px;font-size:10px;letter-spacing:1px;color:var(--muted)}
+  footer .l{display:flex;align-items:center;gap:9px}
+  footer .l .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite}
+  footer .r{display:flex;gap:18px}
+  footer .r span b{color:var(--muted2)}
+
+  /* ---------- secret terminal ---------- */
+  #terminal{
+    position:fixed;left:0;right:0;bottom:28px;z-index:120;height:0;overflow:hidden;
+    background:#04060c;border-top:1px solid var(--accent);transition:height .28s ease;
+    font-family:var(--mono);font-size:12px;
+  }
+  #terminal.open{height:min(340px,52vh)}
+  #term-out{padding:14px 16px 4px;height:calc(100% - 40px);overflow-y:auto;color:var(--green)}
+  #term-out .line{white-space:pre-wrap;margin-bottom:2px}
+  #term-out .u{color:var(--accent)} #term-out .e{color:var(--red)} #term-out .i{color:var(--accent2)} #term-out .m{color:var(--muted2)}
+  #term-in-row{display:flex;align-items:center;gap:8px;padding:8px 16px;border-top:1px solid var(--border)}
+  #term-in-row .pr{color:var(--accent);white-space:nowrap}
+  #term-in{background:transparent;border:none;outline:none;color:var(--text);font-family:var(--mono);font-size:12px;flex:1}
+
+  /* ---------- toast ---------- */
+  #toast-wrap{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);z-index:150;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+  .toast{background:var(--s1);border:1px solid var(--accent);color:var(--text);padding:10px 18px;border-radius:4px;font-size:12px;letter-spacing:.5px;box-shadow:0 8px 30px rgba(0,0,0,.5);animation:toastIn .3s ease;max-width:90vw}
+  .toast .eg{color:var(--accent);font-family:var(--cond);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-right:8px}
+  @keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ---------- egg: rave mode ---------- */
+  body.rave{animation:hue 4s linear infinite}
+  @keyframes hue{from{filter:hue-rotate(0)}to{filter:hue-rotate(360deg)}}
+
+  /* egg counter badge */
+  #egg-badge{position:fixed;top:64px;right:20px;z-index:75;background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:6px 12px;font-size:10px;letter-spacing:1px;color:var(--muted2);display:flex;align-items:center;gap:7px;opacity:0;transform:translateY(-6px);transition:.25s;pointer-events:none}
+  #egg-badge.show{opacity:1;transform:translateY(0)}
+  #egg-badge b{color:var(--accent);font-family:var(--cond);font-weight:700;font-size:13px}
+
+  .hidden-egg{cursor:help}
+</style>
+</head>
+<body class="no-scroll">
+
+<!-- generative video bg -->
+<canvas id="bg-canvas"></canvas>
+<div id="grid-overlay"></div>
+<div id="crt"></div>
+
+<!-- boot loader -->
+<div id="boot"><div id="boot-inner">
+  <pre id="boot-text"></pre>
+  <span class="skip" id="boot-skip">[ skip intro ]</span>
+</div></div>
+
+<header>
+  <div class="brand" id="brand">
+    <span class="mark">UNPOSSIBLE</span>
+    <span class="sub">LLC · est. 2026</span>
+  </div>
+  <nav>
+    <a class="navlink" href="#who">Who</a>
+    <a class="navlink" href="#work">Work</a>
+    <a class="navlink" href="#mission">Mission</a>
+    <a class="navlink" href="#contact">Contact</a>
+    <button class="icon-btn" id="sound-btn" title="Toggle ambient sound">♪</button>
+    <button class="icon-btn" id="crt-btn" title="Toggle CRT effect">▩</button>
+    <button class="icon-btn" id="term-btn" title="Open terminal (press ` )">&gt;_</button>
+  </nav>
+</header>
+
+<div id="egg-badge">EASTER EGGS <b><span id="egg-count">0</span>/7</b></div>
+
+<main>
+  <!-- HERO -->
+  <section id="hero">
+    <div class="wordmark" id="wordmark">
+      <span class="glitch" data-t="UN">UN</span><span class="hero-accent glitch" data-t="POSSIBLE">POSSIBLE</span>
+    </div>
+    <div class="hero-tag">
+      A very small studio doing <b>suspiciously large things</b>.
+      Trading tools. A shipping-container GPU cloud. A two-brain AI mesh.
+      <br>We make the <b>unpossible</b>, possible.
+    </div>
+    <div class="hero-cta">
+      <a href="#work" class="btn primary">See the work →</a>
+      <button class="btn ghost" id="enter-btn">Enter the terminal &gt;_</button>
+    </div>
+    <div class="scroll-hint"><span class="dot"></span> scroll to descend · things are hidden here</div>
+  </section>
+
+  <!-- WHO -->
+  <section id="who">
+    <div class="kicker">who we are</div>
+    <h2 class="title">Small team.<br>Unreasonable&nbsp;scope.</h2>
+    <p class="lede">
+      Unpossible LLC is what happens when a couple of engineers refuse to accept that a thing is too big to build.
+      We ship software that reads markets, hardware that mines dollars from electricity, and infrastructure that
+      turns two laptops into one relentless machine. The name is a wink — <em>"me build that? that's unpossible"</em> —
+      and also a promise.
+    </p>
+    <div class="who-grid">
+      <div class="who-cell"><div class="n">3</div><div class="l">shipping products</div><p>A weekly-chart pattern scanner, a container-scale GPU cloud, and a distributed dev mesh — all live, all built lean.</p></div>
+      <div class="who-cell"><div class="n">1</div><div class="l">shipping container</div><p>Forty feet of steel and 400 amps of power, quietly renting GPU compute to the rest of the internet.</p></div>
+      <div class="who-cell"><div class="n">2</div><div class="l">nodes, one mind</div><p>Two Mac Minis lashed together over an encrypted tunnel, sharing memory and splitting the work.</p></div>
+      <div class="who-cell"><div class="n">∞</div><div class="l">easter eggs (approx.)</div><p>This site is a toy as much as a homepage. Poke it. Type at it. Konami it. There are rewards.</p></div>
+    </div>
+  </section>
+
+  <!-- WORK -->
+  <section id="work">
+    <div class="kicker">the work</div>
+    <h2 class="title">Things that shouldn't<br>fit in a garage.</h2>
+    <p class="lede">Every one of these started as a sentence that ended in "…that's basically impossible." Then we built it anyway.</p>
+    <div class="proj-grid" id="proj-grid"><!-- injected --></div>
+  </section>
+
+  <!-- MISSION -->
+  <section id="mission">
+    <div class="kicker">the mission</div>
+    <div class="mission-statement">
+      Build things that are <span class="strike">impossible</span> <span class="hl">unpossible</span> — useful,
+      a little weird, and shipped by a team far too small to be doing this. Make software that respects your
+      attention, hardware that pays for itself, and tools we'd actually want to use. <span class="hl">Have fun, or it doesn't count.</span>
+    </div>
+    <div class="principles">
+      <div class="p"><div class="i">01</div><div class="t">Ship the weird one</div><p>The obvious idea is already taken. We chase the version everyone else skipped because it sounded too hard.</p></div>
+      <div class="p"><div class="i">02</div><div class="t">Own the metal</div><p>Real hardware, real data, real ownership. No renting our destiny from someone else's dashboard.</p></div>
+      <div class="p"><div class="i">03</div><div class="t">Small on purpose</div><p>Fewer people, tighter loops, faster ships. Constraints are the whole point.</p></div>
+      <div class="p"><div class="i">04</div><div class="t">Leave a door unlocked</div><p>Every thing we make hides something for the curious. This site included.</p></div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact">
+    <div class="kicker" style="justify-content:center">say hello</div>
+    <h2 class="title">Let's make something<br>unpossible.</h2>
+    <p class="lede">Got a problem that everyone says can't be done? That's our favorite kind of email.</p>
+    <div class="contact-row">
+      <a href="mailto:hello@unpossiblellc.com" class="btn primary">hello@unpossiblellc.com</a>
+      <button class="btn ghost" id="secret-btn">·</button>
+    </div>
+    <div class="term-hint">psst — press <kbd>`</kbd> for a terminal, try the <kbd>↑↑↓↓←→←→ B A</kbd> code, and check the <kbd>console</kbd>.</div>
+  </section>
+</main>
+
+<footer>
+  <div class="l"><span class="dot"></span> <span id="status-text">SYSTEMS NOMINAL</span></div>
+  <div class="r">
+    <span><b id="clock">--:--:--</b> CST</span>
+    <span>UPTIME <b id="uptime">0s</b></span>
+    <span>unpossiblellc.com</span>
+  </div>
+</footer>
+
+<div id="terminal">
+  <div id="term-out"></div>
+  <div id="term-in-row">
+    <span class="pr">guest@unpossible:~$</span>
+    <input id="term-in" autocomplete="off" spellcheck="false" placeholder="type 'help' and hit enter" />
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   UNPOSSIBLE LLC — single-file interactive site
+   ============================================================ */
+(function(){
+  const $ = (s,el)=> (el||document).querySelector(s);
+  const $$ = (s,el)=> Array.from((el||document).querySelectorAll(s));
+  const boot = new Date().getTime === undefined ? 0 : Date.now();
+
+  /* ---------- state ---------- */
+  const EGG_TOTAL = 7;
+  const eggs = {}; // id -> true
+  let soundOn = false;
+
+  /* ---------- PROJECTS DATA ---------- */
+  const PROJECTS = [
+    { cat:"Trading Intelligence", name:"EngulfScan Pro", status:["LIVE","st-live"],
+      desc:"A browser-based scanner that hunts bullish engulfing candles across the entire S&P 500 on the weekly chart — then ranks the cleanest setups on a podium. Finds the setup before the setup finds you.",
+      meta:[["503","g","tickers"],["Weekly","b","timeframe"],["A–C","a","grades"]], trend:"up" },
+    { cat:"Compute · Hardware", name:"The Container", status:["ONLINE","st-live"],
+      desc:"A 40-foot shipping container turned GPU cloud. 400 amps of power feeding racks of RTX 4090s and A100s, rented to the world through Vast.ai. A data center you can padlock.",
+      meta:[["400A","a","power"],["4090/A100","b","silicon"],["40ft","g","footprint"]], trend:"up" },
+    { cat:"Distributed AI", name:"Super Clawd", status:["MESHED","st-live"],
+      desc:"Two Mac Minis lashed together over an encrypted Tailscale tunnel into a single distributed Claude Code brain. Shared memory, split tasks, one orchestrator. Two machines, one mind.",
+      meta:[["2","b","nodes"],["Tailscale","g","tunnel"],["1","a","mind"]], trend:"flat" },
+    { cat:"Classified", name:"Project ??????", status:["INCUBATING","st-secret"],
+      desc:"We're not going to tell you what this is yet. What we'll say: it's the most unpossible thing on the list, and it shouldn't work. It does. Type 'roadmap' in the terminal if you're impatient.",
+      meta:[["████","a","status"],["Q?","b","ship"],["yes","g","real"]], trend:"secret" },
+  ];
+
+  /* ---------- BUILD PROJECT CARDS ---------- */
+  function buildProjects(){
+    const grid = $("#proj-grid");
+    PROJECTS.forEach((p,idx)=>{
+      const card = document.createElement("div");
+      card.className="card";
+      card.innerHTML =
+        '<div class="top"><div class="cat">'+p.cat+'</div>'+
+        '<div class="status '+p.status[1]+'">'+p.status[0]+'</div></div>'+
+        '<h3>'+p.name+'</h3>'+
+        '<canvas class="spark" width="300" height="34"></canvas>'+
+        '<p>'+p.desc+'</p>'+
+        '<div class="meta">'+p.meta.map(m=>'<div><span class="mv '+m[1]+'">'+m[0]+'</span><span class="ml">'+m[2]+'</span></div>').join('')+'</div>';
+      grid.appendChild(card);
+      drawSpark(card.querySelector('.spark'), p.trend, idx);
+      // pointer glow follow
+      card.addEventListener('pointermove',e=>{
+        const r=card.getBoundingClientRect();
+        card.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');
+        card.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%');
+      });
+      card.addEventListener('click',()=>{ blip(520+idx*40); if(p.status[1]==='st-secret'){ openTerminal(); termPrint("Nice try. That one's classified. (try: roadmap)","i"); } });
+    });
+  }
+  function drawSpark(cv,trend,seed){
+    if(!cv||!cv.getContext) return;
+    const ctx=cv.getContext('2d'); const w=cv.width,h=cv.height; const n=48;
+    let v=h*0.6, r=mulberry(seed*99+7); const pts=[];
+    for(let i=0;i<n;i++){
+      let d=(r()-0.5)*6;
+      if(trend==='up') d-=1.1; else if(trend==='secret') d=(r()-0.5)*10;
+      v=Math.max(4,Math.min(h-4,v+d)); pts.push(v);
+    }
+    const col = trend==='up'?'#30d060':trend==='secret'?'#a070f0':'#4090ff';
+    ctx.clearRect(0,0,w,h);
+    const grad=ctx.createLinearGradient(0,0,0,h); grad.addColorStop(0,col+'55'); grad.addColorStop(1,col+'00');
+    ctx.beginPath(); ctx.moveTo(0,h);
+    pts.forEach((p,i)=>ctx.lineTo(i/(n-1)*w,p)); ctx.lineTo(w,h); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+    ctx.beginPath(); pts.forEach((p,i)=>{const x=i/(n-1)*w; i?ctx.lineTo(x,p):ctx.moveTo(x,p);});
+    ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.stroke();
+  }
+  function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+  /* ============================================================
+     GENERATIVE VIDEO BACKGROUND — drifting starfield + nodes
+     ============================================================ */
+  const bgCanvas=$("#bg-canvas"); const bgx=bgCanvas.getContext('2d');
+  let W,H,stars=[],nodes=[];
+  function resize(){ W=bgCanvas.width=window.innerWidth; H=bgCanvas.height=window.innerHeight; }
+  function initField(){
+    stars=[]; for(let i=0;i<160;i++) stars.push({x:Math.random()*W,y:Math.random()*H,z:Math.random()*0.8+0.2,s:Math.random()*1.4+0.3});
+    nodes=[]; for(let i=0;i<26;i++) nodes.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*0.25,vy:(Math.random()-0.5)*0.25});
+  }
+  let mouseX=0.5,mouseY=0.5,raveHue=0;
+  window.addEventListener('pointermove',e=>{mouseX=e.clientX/window.innerWidth;mouseY=e.clientY/window.innerHeight;},{passive:true});
+  function frame(){
+    if(!W) {requestAnimationFrame(frame);return;}
+    bgx.clearRect(0,0,W,H);
+    const px=(mouseX-0.5),py=(mouseY-0.5);
+    // stars
+    for(const s of stars){
+      s.x-=s.z*0.35; if(s.x<0){s.x=W;s.y=Math.random()*H;}
+      const ox=px*s.z*30, oy=py*s.z*30;
+      bgx.globalAlpha=s.z; bgx.fillStyle='#8fa0c0';
+      bgx.fillRect(s.x+ox,s.y+oy,s.s,s.s);
+    }
+    // node mesh
+    bgx.globalAlpha=1;
+    for(const n of nodes){ n.x+=n.vx; n.y+=n.vy; if(n.x<0||n.x>W)n.vx*=-1; if(n.y<0||n.y>H)n.vy*=-1; }
+    for(let i=0;i<nodes.length;i++){
+      for(let j=i+1;j<nodes.length;j++){
+        const a=nodes[i],b=nodes[j]; const dx=a.x-b.x,dy=a.y-b.y; const d=Math.hypot(dx,dy);
+        if(d<150){ bgx.globalAlpha=(1-d/150)*0.14; bgx.strokeStyle=document.body.classList.contains('rave')?'hsl('+((raveHue+d)%360)+',80%,60%)':'#f0c040'; bgx.lineWidth=0.6; bgx.beginPath(); bgx.moveTo(a.x,a.y); bgx.lineTo(b.x,b.y); bgx.stroke(); }
+      }
+    }
+    bgx.globalAlpha=0.9;
+    for(const n of nodes){ bgx.fillStyle=document.body.classList.contains('rave')?'hsl('+(raveHue%360)+',80%,60%)':'#4090ff'; bgx.fillRect(n.x-1,n.y-1,2,2); }
+    raveHue+=1.4; bgx.globalAlpha=1;
+    requestAnimationFrame(frame);
+  }
+  window.addEventListener('resize',()=>{resize();initField();});
+  resize(); initField(); requestAnimationFrame(frame);
+
+  /* ============================================================
+     WEBAUDIO — ambient drone + UI blips (no external files)
+     ============================================================ */
+  let actx=null, drone=null, droneGain=null;
+  function ensureAudio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ actx=null; } } if(actx&&actx.state==='suspended') actx.resume(); return actx; }
+  function blip(freq){
+    if(!soundOn) return; const c=ensureAudio(); if(!c) return;
+    const o=c.createOscillator(),g=c.createGain();
+    o.type='square'; o.frequency.value=freq||600; g.gain.value=0.0001;
+    o.connect(g); g.connect(c.destination);
+    const t=c.currentTime; g.gain.exponentialRampToValueAtTime(0.05,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+0.12);
+    o.start(t); o.stop(t+0.13);
+  }
+  function startDrone(){
+    const c=ensureAudio(); if(!c) return;
+    droneGain=c.createGain(); droneGain.gain.value=0.0001; droneGain.connect(c.destination);
+    const freqs=[55,82.4,110,164.8];
+    drone=freqs.map((f,i)=>{ const o=c.createOscillator(); o.type=i%2?'sine':'triangle'; o.frequency.value=f;
+      const g=c.createGain(); g.gain.value=0.25/freqs.length; o.connect(g); g.connect(droneGain); o.start(); return o; });
+    const lfo=c.createOscillator(),lg=c.createGain(); lfo.frequency.value=0.08; lg.gain.value=0.02; lfo.connect(lg); lg.connect(droneGain.gain); lfo.start();
+    droneGain.gain.exponentialRampToValueAtTime(0.12,c.currentTime+2);
+  }
+  function stopDrone(){ if(droneGain&&actx){ droneGain.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+0.6); } if(drone){ setTimeout(()=>{try{drone.forEach(o=>o.stop());}catch(e){}drone=null;},800);} }
+  function toggleSound(){
+    soundOn=!soundOn; const btn=$("#sound-btn"); btn.classList.toggle('on',soundOn);
+    if(soundOn){ ensureAudio(); startDrone(); blip(880); toast("AUDIO","ambient systems online"); }
+    else{ stopDrone(); }
+  }
+  $("#sound-btn").addEventListener('click',toggleSound);
+
+  /* ============================================================
+     BOOT SEQUENCE
+     ============================================================ */
+  const BOOT_LINES = [
+    "UNPOSSIBLE BIOS v2.6 ... OK",
+    "detecting reality ................ [ FAILED ]",
+    "overriding reality ............... [  OK  ]",
+    "mounting /dev/ambition ........... [  OK  ]",
+    "loading engulfscan.pro ........... [ LIVE ]",
+    "spinning up the container ........ [ 400A ]",
+    "meshing node_a <-> node_b ........ [ SYNC ]",
+    "hiding easter eggs (7) ........... [ done ]",
+    "",
+    "welcome to UNPOSSIBLE LLC.",
+    "> we make the unpossible, possible._"
+  ];
+  function runBoot(){
+    const el=$("#boot-text"); let li=0,ci=0,txt="";
+    function step(){
+      if(li>=BOOT_LINES.length){ finishBoot(); return; }
+      const line=BOOT_LINES[li];
+      if(ci<=line.length){ el.textContent=txt+line.slice(0,ci)+'▋'; ci++; setTimeout(step, line.length? (14+Math.random()*22): 60); }
+      else{ txt+=line+"\n"; li++; ci=0; setTimeout(step, 90); }
+    }
+    step();
+  }
+  let bootDone=false;
+  function finishBoot(){
+    if(bootDone) return; bootDone=true;
+    const b=$("#boot"); b.classList.add('done');
+    document.body.classList.remove('no-scroll');
+    setTimeout(()=>{ b.style.display='none'; },700);
+    startUptime();
+    // subtle glitch pulse on the wordmark occasionally
+    setInterval(()=>{ if(Math.random()<0.5){ const wm=$("#wordmark"); wm.classList.add('glitching'); setTimeout(()=>wm.classList.remove('glitching'),260);} }, 5200);
+  }
+  $("#boot-skip").addEventListener('click',finishBoot);
+  document.addEventListener('keydown',e=>{ if(!bootDone && (e.key==='Enter'||e.key==='Escape'||e.key===' ')) finishBoot(); });
+
+  /* ============================================================
+     CLOCK + UPTIME + STATUS
+     ============================================================ */
+  function tick(){
+    const d=new Date();
+    const cst=new Date(d.toLocaleString('en-US',{timeZone:'America/Chicago'}));
+    const p=n=>String(n).padStart(2,'0');
+    const cl=$("#clock"); if(cl) cl.textContent=p(cst.getHours())+':'+p(cst.getMinutes())+':'+p(cst.getSeconds());
+  }
+  setInterval(tick,1000); tick();
+  let up0=null;
+  function startUptime(){ up0=Date.now(); }
+  setInterval(()=>{ if(!up0) return; const s=Math.floor((Date.now()-up0)/1000);
+    const el=$("#uptime"); if(el){ el.textContent = s<60? s+'s' : Math.floor(s/60)+'m '+(s%60)+'s'; } },1000);
+  const STATUSES=["SYSTEMS NOMINAL","CONTAINER @ 400A","MESH SYNCED","SCANNING 503 TICKERS","REALITY: OVERRIDDEN","CURIOSITY ENCOURAGED"];
+  let si=0; setInterval(()=>{ si=(si+1)%STATUSES.length; const el=$("#status-text"); if(el) el.textContent=STATUSES[si]; },3600);
+
+  /* ============================================================
+     TOASTS + EGG TRACKING
+     ============================================================ */
+  function toast(tag,msg,ms){
+    const w=$("#toast-wrap"); const t=document.createElement('div'); t.className='toast';
+    t.innerHTML=(tag?'<span class="eg">'+tag+'</span>':'')+msg; w.appendChild(t);
+    setTimeout(()=>{ t.style.transition='opacity .4s,transform .4s'; t.style.opacity='0'; t.style.transform='translateY(10px)'; setTimeout(()=>t.remove(),400); }, ms||3200);
+  }
+  function findEgg(id,label){
+    if(eggs[id]) return false; eggs[id]=true;
+    const n=Object.keys(eggs).length; $("#egg-count").textContent=n;
+    const badge=$("#egg-badge"); badge.classList.add('show'); setTimeout(()=>badge.classList.remove('show'),4000);
+    blip(1046); toast("EGG "+n+"/"+EGG_TOTAL, label);
+    if(n===EGG_TOTAL){ setTimeout(()=>{ toast("🏆 COMPLETE","You found them all. Type 'prize' in the terminal.",7000); allEggsFound=true; },1400); }
+    return true;
+  }
+  let allEggsFound=false;
+
+  /* ============================================================
+     EGG 1 — logo click counter
+     ============================================================ */
+  let logoClicks=0;
+  $("#brand").addEventListener('click',()=>{ blip(660); logoClicks++;
+    if(logoClicks===5){ findEgg('logo','Impatient clicker. Respect.'); }
+    if(logoClicks>=5 && logoClicks%3===0){ const wm=$("#wordmark"); wm.classList.add('glitching'); setTimeout(()=>wm.classList.remove('glitching'),400); }
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+
+  /* ============================================================
+     EGG 2 — Konami code -> rave mode
+     ============================================================ */
+  const KON=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  let konIdx=0;
+  document.addEventListener('keydown',e=>{
+    const k=e.key.length===1?e.key.toLowerCase():e.key;
+    if(k===KON[konIdx]){ konIdx++; if(konIdx===KON.length){ konIdx=0; activateRave(); } }
+    else { konIdx = (k===KON[0])?1:0; }
+  });
+  function activateRave(){
+    document.body.classList.toggle('rave');
+    const on=document.body.classList.contains('rave');
+    findEgg('konami','KONAMI CODE — rave mode '+(on?'ON':'OFF'));
+    if(on){ if(!soundOn) toggleSound(); for(let i=0;i<8;i++) setTimeout(()=>blip(400+i*110),i*90); }
+  }
+
+  /* ============================================================
+     EGG 3 — the tiny "·" secret button in contact
+     ============================================================ */
+  $("#secret-btn").addEventListener('click',()=>{ findEgg('dot','You clicked the thing that looked like nothing.'); openTerminal(); termPrint("Some doors are just a single dot wide.","i"); });
+
+  /* ============================================================
+     EGG 4 — hidden word in the mission strike-through
+     ============================================================ */
+  const strike=$(".mission-statement .strike");
+  if(strike){ strike.classList.add('hidden-egg'); strike.title="click me";
+    strike.addEventListener('click',()=>findEgg('strike','Crossed-out doesn\'t mean gone.')); }
+
+  /* ============================================================
+     EGG 5 — triple-click the hero wordmark
+     ============================================================ */
+  let wmClicks=0,wmTimer=null;
+  $("#wordmark").addEventListener('click',()=>{ blip(740); wmClicks++; clearTimeout(wmTimer);
+    wmTimer=setTimeout(()=>wmClicks=0,600);
+    const wm=$("#wordmark"); wm.classList.add('glitching'); setTimeout(()=>wm.classList.remove('glitching'),300);
+    if(wmClicks>=3){ wmClicks=0; findEgg('wordmark','You shook the logo hard enough. It liked it.'); }
+  });
+
+  /* ============================================================
+     EGG 6 — idle watcher
+     ============================================================ */
+  let idleT=null;
+  function resetIdle(){ clearTimeout(idleT); idleT=setTimeout(()=>{ if(!eggs['idle']){ findEgg('idle','Still here? So are we. Welcome to the quiet part.'); } },45000); }
+  ['pointermove','keydown','scroll','click'].forEach(ev=>window.addEventListener(ev,resetIdle,{passive:true}));
+  resetIdle();
+
+  /* ============================================================
+     EGG 7 — terminal 'prize' / 'sudo' etc. (handled in terminal)
+     ============================================================ */
+
+  /* ============================================================
+     SECRET TERMINAL
+     ============================================================ */
+  const term=$("#terminal"), tout=$("#term-out"), tin=$("#term-in");
+  let termOpen=false;
+  function openTerminal(){ if(termOpen) return; termOpen=true; term.classList.add('open'); tin.focus();
+    if(!tout.dataset.init){ tout.dataset.init='1'; termPrint("UNPOSSIBLE shell — type 'help'.","m"); }
+    findEgg && findEgg('terminal','You found the terminal. Now type at it.'); blip(700); }
+  function closeTerminal(){ termOpen=false; term.classList.remove('open'); }
+  function toggleTerminal(){ termOpen?closeTerminal():openTerminal(); }
+  function termPrint(txt,cls){ const l=document.createElement('div'); l.className='line'+(cls?' '+cls:''); l.textContent=txt; tout.appendChild(l); tout.scrollTop=tout.scrollHeight; }
+  $("#term-btn").addEventListener('click',toggleTerminal);
+  $("#enter-btn").addEventListener('click',openTerminal);
+  document.addEventListener('keydown',e=>{ if(e.key==='`'){ e.preventDefault(); toggleTerminal(); } if(e.key==='Escape'&&termOpen) closeTerminal(); });
+
+  const CMDS={
+    help:()=>["available commands:","  who        — who is unpossible","  work       — list the products","  mission    — why we do this","  roadmap    — what's next (incl. the classified one)","  scan       — run a fake market scan","  container  — check the GPU container","  mesh       — ping the two-node mesh","  sound      — toggle ambient audio","  rave       — you know what this does","  eggs       — easter egg progress","  clear      — clear the screen","  contact    — how to reach us","  sudo       — don't."],
+    who:()=>["UNPOSSIBLE LLC — a very small studio doing suspiciously large things.","Founded 2026. Powered by stubbornness and 400 amps."],
+    work:()=>PROJECTS.map(p=>"  ["+p.status[0].padEnd(9)+"] "+p.name+" — "+p.cat),
+    mission:()=>["We make the unpossible, possible.","Ship the weird one. Own the metal. Stay small. Leave a door unlocked."],
+    roadmap:()=>{ findEgg('roadmap','You pried open the classified project.'); return ["Q3 — EngulfScan: options flow + alerts","Q4 — The Container: node #2, +200A","2027 — Super Clawd: node C (his cousin's mini)","█████ — Project ?????? : ",'  "it turns '+randWord()+' into '+randWord()+'. that\'s all you get."']; },
+    scan:()=>{ runFakeScan(); return null; },
+    container:()=>["CONTAINER STATUS","  power draw ....... 387A / 400A","  gpus online ...... 14 (12x 4090, 2x A100)","  utilization ...... 91%","  temp ............. 71°C (nominal)","  $/day (est) ...... looking healthy"],
+    mesh:()=>["pinging mesh ...","  node_a (milhouse) .... 2ms  [ONLINE]","  node_b (cousin)  .... 14ms [ONLINE]","  shared memory ....... synced","  orchestrator ........ node_a","two machines, one mind."],
+    sound:()=>{ toggleSound(); return ["ambient audio "+(soundOn?"ON":"OFF")]; },
+    rave:()=>{ activateRave(); return ["rave mode toggled. hope you saved your work."]; },
+    eggs:()=>{ const n=Object.keys(eggs).length; return ["easter eggs found: "+n+"/"+EGG_TOTAL, n===EGG_TOTAL?"you got them all. legend.":"keep poking around the page."]; },
+    contact:()=>["email .... hello@unpossiblellc.com","web ...... unpossiblellc.com","vibe ..... send us something impossible."],
+    prize:()=>{ if(allEggsFound){ partyPrize(); return ["🏆 UNLOCKED: you found all "+EGG_TOTAL+" eggs.","You're exactly the kind of curious we build for.","Screenshot this and send it to hello@unpossiblellc.com — we owe you a sticker."]; } return ["prize locked. find all "+EGG_TOTAL+" eggs first. ("+Object.keys(eggs).length+"/"+EGG_TOTAL+")"]; },
+    sudo:()=>["nice try.","this incident will be reported to exactly nobody.","(you already have root over your own curiosity.)"],
+    clear:()=>{ tout.innerHTML=''; return null; },
+    ls:()=>["who  work  mission  roadmap  secrets/  .env"],
+    cat:()=>["permission denied: nice try though"],
+    whoami:()=>["guest — but a curious one"],
+  };
+  const WORDS=["electricity","candlesticks","silence","two laptops","spare time","stubbornness","a shipping container","weekends"];
+  function randWord(){ return WORDS[Math.floor(Math.random()*WORDS.length)]; }
+
+  function runFakeScan(){
+    const t=["scanning S&P 500 on the weekly ..."];
+    termPrint(t[0],"m");
+    const tickers=["NVDA","AMD","TSLA","MSFT","AAPL","META","AVGO","PLTR","COIN","SMCI"];
+    let i=0;
+    const iv=setInterval(()=>{
+      if(i>=6){ clearInterval(iv); termPrint("scan complete — 6 engulfing setups found. (demo data)","i"); blip(880); return; }
+      const tk=tickers[Math.floor(Math.random()*tickers.length)];
+      const g=["A","A-","B+","B"][Math.floor(Math.random()*4)];
+      termPrint("  "+tk.padEnd(6)+" bullish engulfing   grade "+g+"   ▲","u"); blip(560+i*30); i++;
+    },260);
+  }
+  function partyPrize(){ for(let i=0;i<14;i++) setTimeout(()=>blip(500+i*60),i*70); if(!document.body.classList.contains('rave')) activateRave(); }
+
+  function handleCmd(raw){
+    const cmd=raw.trim(); if(!cmd) return;
+    termPrint("guest@unpossible:~$ "+cmd,"u");
+    const name=cmd.split(/\s+/)[0].toLowerCase();
+    if(CMDS[name]){ const out=CMDS[name](); if(out) out.forEach(l=>termPrint(l)); }
+    else termPrint("command not found: "+name+"  (try 'help')","e");
+  }
+  tin.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=tin.value; tin.value=''; handleCmd(v); blip(700);} });
+
+  /* ============================================================
+     CONSOLE EASTER EGG
+     ============================================================ */
+  const cs='color:#f0c040;font-family:monospace;font-size:13px';
+  const cs2='color:#8090a8;font-family:monospace';
+  console.log('%cUNPOSSIBLE LLC','color:#f0c040;font-family:sans-serif;font-size:28px;font-weight:bold;letter-spacing:3px;text-shadow:0 0 10px rgba(240,192,64,.5)');
+  console.log('%cwe make the unpossible, possible.',cs);
+  console.log('%c\nOh, you opened the console. Of course you did.\nThat\'s eng #? of the hidden ones — but only if you type:  unpossible.hire()\n',cs2);
+  console.log('%cThere are 7 easter eggs on this page. Found any yet?',cs2);
+  window.unpossible = {
+    hire(){ console.log('%c\n  We\'re always interested in people who read the console.\n  → hello@unpossiblellc.com  (mention "console")\n',cs); findEgg('console','You talked to the console. It talked back.'); return '👋'; },
+    eggs(){ console.log('%cfound '+Object.keys(eggs).length+'/'+EGG_TOTAL,cs); return Object.keys(eggs); },
+    help(){ console.log('%ctry: unpossible.hire()  ·  unpossible.eggs()',cs2); }
+  };
+
+  /* ============================================================
+     REVEAL-ON-SCROLL (subtle)
+     ============================================================ */
+  const io=new IntersectionObserver(es=>{ es.forEach(x=>{ if(x.isIntersecting){ x.target.style.opacity='1'; x.target.style.transform='none'; } }); },{threshold:0.12});
+  $$('#who, #work, #mission, #contact').forEach(s=>{ s.style.opacity='0'; s.style.transform='translateY(18px)'; s.style.transition='opacity .7s ease, transform .7s ease'; io.observe(s); });
+
+  /* CRT toggle */
+  $("#crt-btn").addEventListener('click',function(){ document.body.classList.toggle('crt-off'); this.classList.toggle('on',!document.body.classList.contains('crt-off')); blip(500); });
+  $("#crt-btn").classList.add('on');
+
+  /* global hover blips on buttons/links */
+  $$('.btn, nav a, .icon-btn, .card').forEach(el=>el.addEventListener('pointerenter',()=>blip(1200)));
+
+  /* ---------- INIT ---------- */
+  buildProjects();
+  runBoot();
+})();
+</script>
+</body>
+</html>
