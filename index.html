@@ -239,6 +239,8 @@
   #vegas-banner b{font-family:var(--disp);font-size:clamp(80px,20vw,260px);letter-spacing:18px;padding-left:18px;line-height:.86;text-align:center;color:var(--accent);
     text-shadow:0 0 30px rgba(240,192,64,.9),0 0 70px rgba(240,64,64,.6),0 0 120px rgba(64,144,255,.5);animation:vegaspulse .5s ease-in-out infinite}
   @keyframes vegaspulse{0%,100%{transform:scale(1) rotate(-1deg)}50%{transform:scale(1.14) rotate(1deg)}}
+  /* reduced-motion CALM variant: keep the banner + color/hue shift, drop the continuous pulse */
+  body.vegas-calm #vegas-banner b{animation:none;transform:none}
 
   /* egg counter badge */
   #egg-badge{position:fixed;top:64px;right:20px;z-index:75;background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:6px 12px;font-size:10px;letter-spacing:1px;color:var(--muted2);display:flex;align-items:center;gap:7px;opacity:0;transform:translateY(-6px);transition:.25s;pointer-events:none}
@@ -622,28 +624,35 @@
   let vegasActive=false, vgShakeIv=null, vgFlashIv=null, vgArpIv=null, vgArpStep=0, vgBannerT=null;
   const VEGAS_ARP=[523.25,659.25,783.99,1046.5,783.99,659.25,587.33,783.99];
   function toggleVegas(){ vegasActive ? vegasStop() : vegasStart(); }   // used by konami, terminal, partyPrize
+  // honors OS "reduce motion": CALM variant keeps the banner + color/hue shift, skips the motion-heavy bits
+  function reduceMotion(){ try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
   function vegasStart(){
     if(vegasActive) return; vegasActive=true;
+    const calm=reduceMotion();
     document.body.classList.add('vegas');                 // single active flag; frame()+CSS key off it
+    if(calm) document.body.classList.add('vegas-calm');   // CSS neutralizes the banner pulse under reduced motion
     findEgg('konami','KONAMI CODE — the house always wins now. enjoy the lights.');
-    // background canvas goes wild: many more nodes, much faster (frame() draws rainbow while .vegas)
-    nodes=[]; for(let i=0;i<70;i++) nodes.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*1.2,vy:(Math.random()-0.5)*1.2});
-    // continuous hero glitch
-    $("#wordmark").classList.add('vegas-glitch');
-    // screen shake — jitter the CONTENT (main); shaking <body> would reparent every fixed overlay
-    const m=$("main");
-    vgShakeIv=setInterval(()=>{
-      const dx=(Math.random()-0.5)*9,dy=(Math.random()-0.5)*9,r=(Math.random()-0.5)*1.2;
-      m.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px) rotate('+r.toFixed(2)+'deg)';
-    },55);
-    // periodic full-screen invert flash (via blend overlay, so nothing gets reparented)
-    vgFlashIv=setInterval(vegasFlash,2100);
-    // audio: force ambient on, then loop an arpeggio
+    if(!calm){
+      // background canvas goes wild: many more nodes, much faster (frame() draws rainbow while .vegas)
+      nodes=[]; for(let i=0;i<70;i++) nodes.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*1.2,vy:(Math.random()-0.5)*1.2});
+      // continuous hero glitch
+      $("#wordmark").classList.add('vegas-glitch');
+      // screen shake — jitter the CONTENT (main); shaking <body> would reparent every fixed overlay
+      const m=$("main");
+      vgShakeIv=setInterval(()=>{
+        const dx=(Math.random()-0.5)*9,dy=(Math.random()-0.5)*9,r=(Math.random()-0.5)*1.2;
+        m.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px) rotate('+r.toFixed(2)+'deg)';
+      },55);
+      // periodic full-screen invert flash (via blend overlay, so nothing gets reparented)
+      vgFlashIv=setInterval(vegasFlash,2100);
+    }
+    // calm keeps the rainbow color/hue on the default (slow) node field — no shake, no flash, no glitch
+    // audio: force ambient on, then loop an arpeggio (sound isn't motion — runs in both variants)
     if(!soundOn) toggleSound();
     vgArpStep=0; vgArpIv=setInterval(vegasArpTick,150);
-    // big pulsing (name-free) banner on activation
+    // big pulsing (name-free) banner on activation — shown in both variants (calm = static, see CSS)
     const bn=$("#vegas-banner"); if(bn){ bn.classList.add('show'); clearTimeout(vgBannerT); vgBannerT=setTimeout(()=>bn.classList.remove('show'),2600); }
-    toast("🎰","enter the code again to return to reality",4200);
+    toast("🎰",calm?"house lights low. enter the code again to exit.":"enter the code again to return to reality",4200);
   }
   function vegasStop(){
     if(!vegasActive) return; vegasActive=false;
@@ -652,7 +661,8 @@
     clearInterval(vgArpIv);   vgArpIv=null;
     clearTimeout(vgBannerT);  vgBannerT=null;
     document.body.classList.remove('vegas');
-    const m=$("main"); if(m) m.style.transform='';                  // remove shake
+    document.body.classList.remove('vegas-calm');                   // clear reduced-motion variant flag
+    const m=$("main"); if(m) m.style.transform='';                  // remove shake (calm never set it)
     const fl=$("#vegas-flash"); if(fl) fl.classList.remove('on');   // clear any lingering invert
     $("#wordmark").classList.remove('vegas-glitch');                // stop continuous glitch
     const bn=$("#vegas-banner"); if(bn) bn.classList.remove('show');
